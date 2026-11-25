@@ -22,6 +22,37 @@ pip install -e ".[dev]"
 
 ## Usage
 
+Just run `surfcast` and it will ask you where:
+
+```
+$ surfcast
+Where do you want to know the surf forecast? rockaway beach nyc
+
+Here is the surf forecast for Rockaway Beach:
+
+Rockaway Beach  (40.5790, -73.8360)  tz=America/New_York  source=open-meteo
+Time       Waves  Swell  Period  Swell dir  Wind    Wind dir
+---------  -----  -----  ------  ---------  ------  --------
+Wed 06:00  2.6ft  2.3ft  9s      ESE        6.2kt   N
+...
+
+Where do you want to know the surf forecast?
+```
+
+Spot names are matched loosely: slugs, full names, nearby cities and nicknames
+all work ("rockaway beach nyc", "pipe", "sf", "nazare"). Press Enter on an
+empty line or type `quit` to finish.
+
+Or skip the question and pass the place directly:
+
+```bash
+surfcast ask rockaway beach nyc
+surfcast ask "north shore oahu" --days 5
+```
+
+The scripted commands below are still there for exact control and
+machine-readable output:
+
 ```bash
 # 3-day forecast for a built-in spot (daylight hours only)
 surfcast forecast --spot malibu

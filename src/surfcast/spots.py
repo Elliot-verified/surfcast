@@ -5,6 +5,9 @@ Add your own by passing --lat/--lon on the command line, or extend this dict.
 
 from __future__ import annotations
 
+import re
+import unicodedata
+
 from surfcast.models import Spot
 
 SPOTS: dict[str, Spot] = {
@@ -42,3 +45,113 @@ def get_spot(slug: str) -> Spot:
     except KeyError:
         known = ", ".join(sorted(SPOTS))
         raise KeyError(f"unknown spot '{slug}'. Known spots: {known}") from None
+
+
+# Extra words people use for a spot that are not in its name: nearby cities, regions, nicknames.
+ALIASES: dict[str, list[str]] = {
+    "malibu": ["la", "los angeles", "surfrider", "california", "socal"],
+    "huntington": ["hb", "surf city", "orange county", "california", "socal"],
+    "trestles": ["lowers", "san clemente", "san onofre", "california", "socal"],
+    "ocean-beach": ["ob", "san francisco", "sf", "california", "norcal"],
+    "mavericks": ["half moon bay", "california", "norcal"],
+    "pipeline": ["pipe", "banzai", "north shore", "oahu", "hawaii"],
+    "waikiki": ["honolulu", "oahu", "hawaii"],
+    "rincon": ["santa barbara", "carpinteria", "california"],
+    "montauk": ["ditch plains", "ditch", "long island", "new york", "ny", "hamptons"],
+    "rockaway": ["rockaways", "queens", "nyc", "new york", "ny", "new york city", "brooklyn"],
+    "cocoa-beach": ["florida", "fl", "space coast"],
+    "nazare": ["portugal", "praia do norte"],
+    "hossegor": ["france", "landes", "la graviere"],
+    "mundaka": ["spain", "basque"],
+    "jbay": ["jeffreys", "j-bay", "supertubes", "south africa"],
+    "bells": ["torquay", "victoria", "australia"],
+    "snapper": ["superbank", "coolangatta", "gold coast", "australia"],
+    "uluwatu": ["ulus", "bali", "indonesia"],
+    "raglan": ["manu bay", "new zealand", "nz"],
+    "teahupoo": ["chopes", "tahiti", "french polynesia"],
+}
+
+# Words that carry no location information when someone asks for a forecast.
+_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "at",
+    "for",
+    "forecast",
+    "how",
+    "in",
+    "is",
+    "it",
+    "me",
+    "near",
+    "of",
+    "on",
+    "please",
+    "surf",
+    "the",
+    "there",
+    "today",
+    "tomorrow",
+    "waves",
+    "what",
+    "whats",
+}
+
+
+def _normalize(text: str) -> str:
+    """Lowercase, strip accents and punctuation: 'Nazaré' -> 'nazare'."""
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9 ]+", " ", text.lower()).strip()
+
+
+def _tokens(text: str) -> set[str]:
+    return {t for t in _normalize(text).split() if t not in _STOPWORDS}
+
+
+def _search_terms(slug: str, spot: Spot) -> tuple[set[str], list[str]]:
+    """Return (single-word tokens, multi-word phrases) that identify a spot."""
+    words = {slug} | set(slug.split("-")) | _tokens(spot.name)
+    phrases = []
+    for alias in ALIASES.get(slug, []):
+        norm = _normalize(alias)
+        if " " in norm:
+            phrases.append(norm)
+        words |= set(norm.split())
+    return words, phrases
+
+
+def find_spot(query: str) -> Spot:
+    """Find a built-in spot from free text such as 'rockaway beach nyc' or 'Nazare'.
+
+    Raises ``KeyError`` when nothing matches and ``ValueError`` when the query
+    is ambiguous (e.g. just 'beach').
+    """
+    text = _normalize(query)
+    if not text:
+        raise KeyError("please name a surf spot")
+    if text in SPOTS:
+        return SPOTS[text]
+
+    query_tokens = _tokens(query)
+    scores: dict[str, int] = {}
+    for slug, spot in SPOTS.items():
+        words, phrases = _search_terms(slug, spot)
+        score = len(query_tokens & words)
+        score += 2 * sum(1 for phrase in phrases if phrase in text)
+        if _normalize(spot.name) in text:
+            score += 3
+        if score:
+            scores[slug] = score
+
+    if not scores:
+        known = ", ".join(sorted(SPOTS))
+        raise KeyError(f"unknown spot '{query}'. Known spots: {known}")
+
+    best = max(scores.values())
+    winners = sorted(slug for slug, score in scores.items() if score == best)
+    if len(winners) > 1:
+        options = ", ".join(SPOTS[slug].name for slug in winners)
+        raise ValueError(f"'{query}' could be any of: {options}. Be more specific.")
+    return SPOTS[winners[0]]

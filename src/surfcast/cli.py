@@ -9,7 +9,10 @@ from surfcast import __version__
 from surfcast.client import ForecastError, SurfForecastClient
 from surfcast.format import render_csv, render_json, render_table
 from surfcast.models import Spot
-from surfcast.spots import SPOTS, get_spot
+from surfcast.spots import SPOTS, find_spot
+
+PROMPT = "Where do you want to know the surf forecast? "
+QUIT_WORDS = {"q", "quit", "exit", "bye", "done", "no", "nothing"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -18,11 +21,11 @@ def build_parser() -> argparse.ArgumentParser:
         description="Pull surf forecast data (swell, period, wind) for a surf spot.",
     )
     parser.add_argument("--version", action="version", version=f"surfcast {__version__}")
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command")
 
     fc = sub.add_parser("forecast", help="fetch a forecast for a spot")
     where = fc.add_mutually_exclusive_group(required=True)
-    where.add_argument("--spot", help="built-in spot slug (see `surfcast spots`)")
+    where.add_argument("--spot", help="built-in spot slug or name, e.g. 'rockaway beach nyc'")
     where.add_argument("--lat", type=float, help="latitude (use with --lon)")
     fc.add_argument("--lon", type=float, help="longitude (use with --lat)")
     fc.add_argument("--name", help="label for a custom --lat/--lon location")
@@ -33,21 +36,67 @@ def build_parser() -> argparse.ArgumentParser:
     fc.add_argument("--all-hours", action="store_true", help="include night hours")
     fc.add_argument("--no-wind", action="store_true", help="skip the wind request")
 
+    ask = sub.add_parser(
+        "ask",
+        help="ask for a spot by name and get its forecast (default when no command is given)",
+    )
+    ask.add_argument("place", nargs="*", help="spot name, e.g. 'rockaway beach nyc' (or be asked)")
+    ask.add_argument("--days", type=int, default=3, help="forecast days, 1-16 (default 3)")
+    ask.add_argument("--all-hours", action="store_true", help="include night hours")
+
     sub.add_parser("spots", help="list built-in spots")
     return parser
 
 
 def resolve_spot(args: argparse.Namespace) -> Spot:
     if args.spot:
-        return get_spot(args.spot)
+        return find_spot(args.spot)
     if args.lon is None:
         raise SystemExit("error: --lon is required with --lat")
     name = args.name or f"{args.lat:.4f}, {args.lon:.4f}"
     return Spot(name=name, latitude=args.lat, longitude=args.lon)
 
 
+def ask(args: argparse.Namespace, client: SurfForecastClient) -> int:
+    """Interactive mode: ask where, answer with the forecast, repeat until the user is done."""
+    place = " ".join(args.place).strip()
+    asked = False
+    while True:
+        if not place:
+            try:
+                place = input(PROMPT).strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                return 0
+            asked = True
+            if not place or place.lower() in QUIT_WORDS:
+                return 0
+
+        try:
+            spot = find_spot(place)
+            forecast = client.forecast(spot, days=args.days)
+        except (KeyError, ValueError, ForecastError) as exc:
+            message = exc.args[0] if exc.args else str(exc)
+            print(f"Sorry, {message}", file=sys.stderr)
+            if not asked:
+                return 1
+        else:
+            hours = forecast.hours if args.all_hours else forecast.daylight()
+            print(f"\nHere is the surf forecast for {spot.name}:\n")
+            print(render_table(forecast, hours))
+            print()
+        if not asked:
+            return 0
+        place = ""
+
+
 def main(argv: list[str] | None = None, client: SurfForecastClient | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.command is None or args.command == "ask":
+        if args.command is None:
+            args.place, args.days, args.all_hours = [], 3, False
+        return ask(args, client or SurfForecastClient())
 
     if args.command == "spots":
         width = max(len(slug) for slug in SPOTS)

@@ -2,6 +2,8 @@ import csv
 import io
 import json
 
+import pytest
+
 from surfcast.cli import main
 
 
@@ -44,3 +46,50 @@ def test_spots_lists_catalogue(capsys):
     assert main(["spots"]) == 0
     out = capsys.readouterr().out
     assert "malibu" in out and "pipeline" in out
+
+
+def test_spot_accepts_free_text(client, capsys):
+    assert main(["forecast", "--spot", "rockaway beach nyc"], client=client) == 0
+    assert "Rockaway Beach" in capsys.readouterr().out
+
+
+def test_ask_prompts_then_answers(client, capsys, monkeypatch):
+    answers = iter(["rockaway beach nyc", ""])
+    prompts: list[str] = []
+
+    def fake_input(prompt: str) -> str:
+        prompts.append(prompt)
+        return next(answers)
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    assert main([], client=client) == 0
+    out = capsys.readouterr().out
+    assert prompts[0] == "Where do you want to know the surf forecast? "
+    assert "Here is the surf forecast for Rockaway Beach" in out
+    assert "Swell" in out and "ft" in out
+    assert len(prompts) == 2  # asked again after answering, then quit on empty line
+
+
+def test_ask_recovers_from_unknown_place(client, capsys, monkeypatch):
+    answers = iter(["atlantis", "beach", "pipe", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(answers))
+    assert main(["ask"], client=client) == 0
+    captured = capsys.readouterr()
+    assert "unknown spot 'atlantis'" in captured.err
+    assert "could be any of" in captured.err
+    assert "Pipeline, Oahu" in captured.out
+
+
+def test_ask_with_place_argument_is_one_shot(client, capsys, monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda prompt: pytest.fail("should not prompt"))
+    assert main(["ask", "rockaway", "beach", "nyc", "--days", "2"], client=client) == 0
+    assert "Rockaway Beach" in capsys.readouterr().out
+    assert main(["ask", "atlantis"], client=client) == 1
+
+
+def test_ask_handles_eof(client, capsys, monkeypatch):
+    def eof(prompt: str) -> str:
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", eof)
+    assert main([], client=client) == 0
