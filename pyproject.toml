@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,11 +8,11 @@ version = "0.1.0"
 description = "Pull surf forecast data (swell, wave period, wind) for any surf spot from the command line."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 keywords = ["surf", "forecast", "swell", "waves", "open-meteo", "cli"]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Environment :: Console",
     "Topic :: Scientific/Engineering :: Atmospheric Science",
 ]
