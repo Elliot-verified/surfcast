@@ -4,7 +4,8 @@ A small command-line tool that pulls surf forecast data for any surf spot:
 wave height, swell height/period/direction, and wind.
 
 Data comes from the free [Open-Meteo](https://open-meteo.com/) marine and
-weather APIs. No API key required. Zero runtime dependencies.
+weather APIs. No API key required. Zero runtime dependencies (voice mode
+optionally adds [Vosk](https://alphacephei.com/vosk/) for offline speech recognition).
 
 ## Install
 
@@ -49,6 +50,35 @@ Or skip the question and pass the place directly:
 surfcast ask rockaway beach nyc
 surfcast ask "north shore oahu" --days 5
 ```
+
+## Voice mode
+
+On a Raspberry Pi (or any Linux box) with a microphone and speaker, surfcast
+can listen for a spot name and read the forecast back:
+
+```bash
+pip install "surfcast[voice]"      # adds vosk, an offline speech recogniser
+sudo apt install alsa-utils espeak-ng ffmpeg   # mic capture, text-to-speech, file decoding
+
+surfcast listen
+# Listening. Say "hey surf" and then a surf spot, e.g. "hey surf, rockaway beach".
+# Heard: hey surf rockaway beach
+# Here is the surf forecast for Rockaway Beach: ...
+```
+
+The first run downloads a ~40 MB English model to `~/.cache/surfcast`.
+Recognition runs fully offline and is constrained to the spot catalogue, so
+even a small model gets names like "Teahupo'o" right. Useful flags:
+
+```bash
+surfcast listen --mic plughw:2,0 --speaker plughw:3,0   # pick ALSA devices (see arecord -l / aplay -l)
+surfcast listen --no-wake                                # answer any speech, no "hey surf" needed
+surfcast listen --wake "ok waves"                        # custom wake phrase
+surfcast listen --no-speak --once                        # print only, exit after one forecast
+surfcast listen --audio clip.wav                         # transcribe a recording instead of the mic
+```
+
+Say "quit" to stop.
 
 The scripted commands below are still there for exact control and
 machine-readable output:
