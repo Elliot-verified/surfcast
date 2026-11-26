@@ -72,6 +72,15 @@ def test_unknown_spot_apologises_and_keeps_listening(client):
     assert "Malibu (Surfrider)" in out
 
 
+def test_unknown_word_markers_are_stripped(client):
+    rc, out, said, errors = run(["hey surf [unk]", "[unk] [unk]", "hey surf [unk] malibu"], client)
+    assert rc == 0
+    assert errors == ["Sorry, please name a surf spot"]  # not "unknown spot 'unk'"
+    assert said[0] == "Yes? Which surf spot?"  # "hey surf [unk]" is just the wake phrase
+    assert said[1] == "Sorry, I did not catch a surf spot. Try again."
+    assert "Malibu (Surfrider)" in out
+
+
 def test_quit_word_stops(client):
     rc, out, said, _ = run(["quit", "malibu"], client, wake=None)
     assert rc == 0

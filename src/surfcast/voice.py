@@ -266,6 +266,9 @@ def listen(
 
     for text in transcriber.transcribe(chunks):
         out(f"Heard: {text}")
+        text = " ".join(
+            word for word in text.split() if word != "[unk]"
+        )  # drop unknown-word markers
         if wake:
             heard_wake, text = _strip_wake(text, wake)
             if heard_wake:
