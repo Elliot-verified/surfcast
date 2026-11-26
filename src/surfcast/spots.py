@@ -60,15 +60,15 @@ ALIASES: dict[str, list[str]] = {
     "montauk": ["ditch plains", "ditch", "long island", "new york", "ny", "hamptons"],
     "rockaway": ["rockaways", "queens", "nyc", "new york", "ny", "new york city", "brooklyn"],
     "cocoa-beach": ["florida", "fl", "space coast"],
-    "nazare": ["portugal", "praia do norte"],
-    "hossegor": ["france", "landes", "la graviere"],
-    "mundaka": ["spain", "basque"],
-    "jbay": ["jeffreys", "j-bay", "supertubes", "south africa"],
+    "nazare": ["nazareth", "portugal", "praia do norte"],  # "nazareth": how recognisers hear it
+    "hossegor": ["hossegor", "hoss a gore", "france", "landes", "la graviere"],
+    "mundaka": ["moon dhaka", "spain", "basque"],
+    "jbay": ["jeffreys", "j-bay", "jay bay", "supertubes", "south africa"],
     "bells": ["torquay", "victoria", "australia"],
     "snapper": ["superbank", "coolangatta", "gold coast", "australia"],
     "uluwatu": ["ulus", "bali", "indonesia"],
     "raglan": ["manu bay", "new zealand", "nz"],
-    "teahupoo": ["chopes", "tahiti", "french polynesia"],
+    "teahupoo": ["chopes", "cho poo", "tahiti", "french polynesia"],
 }
 
 # Words that carry no location information when someone asks for a forecast.
@@ -103,7 +103,7 @@ def _normalize(text: str) -> str:
     """Lowercase, strip accents and punctuation: 'Nazaré' -> 'nazare'."""
     text = unicodedata.normalize("NFKD", text)
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
-    return re.sub(r"[^a-z0-9 ]+", " ", text.lower()).strip()
+    return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text.lower()).split())
 
 
 def _tokens(text: str) -> set[str]:

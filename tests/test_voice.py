@@ -124,6 +124,8 @@ def test_grammar_covers_catalogue_and_wake():
     assert "nazare" in phrases  # accents stripped so the model vocabulary matches
     assert phrases[-1] == "[unk]"
     assert "" not in phrases
+    assert all("  " not in p for p in phrases)  # would become empty grammar words
+    assert "ocean beach sf" in phrases
 
 
 @pytest.mark.parametrize(

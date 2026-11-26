@@ -19,6 +19,9 @@ from surfcast.spots import SPOTS, find_spot, get_spot
         ("what's the surf forecast for malibu today", "malibu"),
         ("Jeffreys Bay", "jbay"),
         ("ditch plains", "montauk"),
+        ("ocean beach sf", "ocean-beach"),  # comma in the name must not matter
+        ("nazareth", "nazare"),  # how speech recognisers tend to hear it
+        ("jay bay", "jbay"),
     ],
 )
 def test_find_spot_from_free_text(query, slug):

@@ -8,6 +8,7 @@ file; speech output uses ``espeak-ng``/``espeak`` when installed.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import shutil
@@ -119,6 +120,20 @@ def ensure_model(model_dir: str | Path | None = None, log: Callable[[str], None]
     return path
 
 
+@contextlib.contextmanager
+def _quiet_stderr() -> Iterator[None]:
+    """Hide Kaldi's C++ warnings (e.g. grammar words missing from the model vocabulary)."""
+    sys.stderr.flush()
+    saved = os.dup(2)
+    try:
+        with open(os.devnull, "wb") as devnull:
+            os.dup2(devnull.fileno(), 2)
+        yield
+    finally:
+        os.dup2(saved, 2)
+        os.close(saved)
+
+
 class VoskTranscriber:
     """Offline recogniser backed by Vosk. Requires ``pip install surfcast[voice]``."""
 
@@ -135,11 +150,13 @@ class VoskTranscriber:
                 "voice mode needs the vosk package: pip install 'surfcast[voice]'"
             ) from exc
         vosk.SetLogLevel(-1)
-        model = vosk.Model(str(ensure_model(model_dir, log)))
-        if grammar:
-            self._rec = vosk.KaldiRecognizer(model, SAMPLE_RATE, json.dumps(grammar))
-        else:
-            self._rec = vosk.KaldiRecognizer(model, SAMPLE_RATE)
+        path = ensure_model(model_dir, log)
+        with _quiet_stderr():
+            model = vosk.Model(str(path))
+            if grammar:
+                self._rec = vosk.KaldiRecognizer(model, SAMPLE_RATE, json.dumps(grammar))
+            else:
+                self._rec = vosk.KaldiRecognizer(model, SAMPLE_RATE)
 
     def transcribe(self, chunks: Chunks) -> Iterator[str]:
         for chunk in chunks:
