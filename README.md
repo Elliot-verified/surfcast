@@ -54,30 +54,39 @@ surfcast ask "north shore oahu" --days 5
 ## Voice mode
 
 On a Raspberry Pi (or any Linux box) with a microphone and speaker, surfcast
-can listen for a spot name and read the forecast back:
+can answer spoken questions with a short surf report:
 
 ```bash
-pip install "surfcast[voice]"      # adds vosk, an offline speech recogniser
-sudo apt install alsa-utils espeak-ng ffmpeg   # mic capture, text-to-speech, file decoding
+pip install "surfcast[voice]"      # adds vosk (offline speech recognition) and piper-tts (natural voice)
+sudo apt install alsa-utils ffmpeg # mic capture and playback, audio file decoding
 
 surfcast listen
-# Listening. Say "hey surf" and then a surf spot, e.g. "hey surf, rockaway beach".
-# Heard: hey surf rockaway beach
+# Listening. Ask "what are the waves in rockaway?" or say "hey surf" and a spot name.
+# Heard: what are the waves in rockaway new york
 # Here is the surf forecast for Rockaway Beach: ...
+# Here's Rockaway Beach today. It's looking fun sized, 3 to 4 feet and holding steady,
+# from a 3 foot east swell at 9 seconds. Wind is light, around 5 knots out of the west.
+# Should be a fun one.
 ```
 
-The first run downloads a ~40 MB English model to `~/.cache/surfcast`.
-Recognition runs fully offline and is constrained to the spot catalogue, so
-even a small model gets names like "Teahupo'o" right. Useful flags:
+Any question that mentions waves, surf, swell or a forecast is answered
+straight away; anything else needs the wake phrase first. Add "tomorrow" to
+hear the next day. The first run downloads a ~40 MB English speech model and a
+~60 MB voice to `~/.cache/surfcast`. Everything runs offline except the
+forecast request itself. Recognition is constrained to the spot catalogue and
+a few question words, so even a small model gets names like "Teahupo'o" right.
+Useful flags:
 
 ```bash
 surfcast listen --mic plughw:2,0 --speaker plughw:3,0   # pick ALSA devices (see arecord -l / aplay -l)
+surfcast listen --voice en_US-amy-medium                 # another Piper voice (or a path to a .onnx file)
 surfcast listen --no-wake                                # answer any speech, no "hey surf" needed
 surfcast listen --wake "ok waves"                        # custom wake phrase
 surfcast listen --no-speak --once                        # print only, exit after one forecast
 surfcast listen --audio clip.wav                         # transcribe a recording instead of the mic
 ```
 
+Without `piper-tts` installed, surfcast falls back to `espeak-ng` if present.
 Say "quit" to stop.
 
 The scripted commands below are still there for exact control and

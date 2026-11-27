@@ -44,12 +44,19 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("--days", type=int, default=3, help="forecast days, 1-16 (default 3)")
     ask.add_argument("--all-hours", action="store_true", help="include night hours")
 
-    ls = sub.add_parser("listen", help="voice mode: say a spot, hear the forecast (needs [voice])")
+    ls = sub.add_parser(
+        "listen", help="voice mode: ask about a spot, hear the surf report (needs [voice])"
+    )
     ls.add_argument("--wake", default=None, help='wake phrase (default "hey surf"); "" to disable')
     ls.add_argument("--no-wake", action="store_true", help="respond to any speech, no wake phrase")
     ls.add_argument("--mic", help="ALSA capture device for arecord, e.g. plughw:2,0")
     ls.add_argument("--speaker", help="ALSA playback device for aplay, e.g. plughw:3,0")
     ls.add_argument("--no-speak", action="store_true", help="print only, do not talk back")
+    ls.add_argument(
+        "--voice",
+        default=None,
+        help="Piper voice name or .onnx path (default en_US-lessac-medium; needs piper-tts)",
+    )
     ls.add_argument("--once", action="store_true", help="exit after the first forecast")
     ls.add_argument("--days", type=int, default=3, help="forecast days, 1-16 (default 3)")
     ls.add_argument("--audio", help="transcribe this audio file instead of the microphone")
@@ -115,7 +122,9 @@ def listen_command(args: argparse.Namespace, client: SurfForecastClient) -> int:
     except (RuntimeError, FileNotFoundError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    speak = voice.make_speaker(args.speaker, enabled=not args.no_speak)
+    speak = voice.make_speaker(
+        args.speaker, enabled=not args.no_speak, voice=args.voice or voice.DEFAULT_VOICE
+    )
     try:
         return voice.listen(
             transcriber, chunks, client, wake=wake, days=args.days, once=args.once, speak=speak

@@ -20,7 +20,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
-voice = ["vosk>=0.3.45"]
+voice = ["vosk>=0.3.45", "piper-tts>=1.3"]
 
 [project.scripts]
 surfcast = "surfcast.cli:main"
